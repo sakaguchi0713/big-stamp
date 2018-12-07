@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"github.com/lob-inc/rssp/server/shared/logger"
 )
 
 var (
@@ -50,6 +51,9 @@ func handle(w http.ResponseWriter, r *http.Request) {
 	eb, _ := json.Marshal(msg["emoji"])
 
 	json.Unmarshal(eb, &emoji)
+	if emoji == nil {
+		logger.Warn("emoji in json is nil.")
+	}
 
 	emojiMsg := emoji.(map[string]interface{})
 	sendMsgUrl := "https://slack.com/api/chat.postMessage"
