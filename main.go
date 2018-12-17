@@ -14,7 +14,7 @@ import (
 func main() {
 	logger.Infof("Start big-stamp server.")
 	http.HandleFunc("/", handle)
-	log.Fatal(http.ListenAndServe(":" + os.Getenv("PORT"), nil))
+	log.Fatal(http.ListenAndServe(":"+os.Getenv("PORT"), nil))
 }
 
 func handle(w http.ResponseWriter, r *http.Request) {
