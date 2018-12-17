@@ -2,42 +2,60 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
+	"github.com/lob-inc/rssp/server/shared/logger"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
-	"strings"
-)
-
-var (
-	port  string = "80"
-	token string
 )
 
 func main() {
+	logger.Infof("Start big-stamp server.")
 	http.HandleFunc("/", handle)
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Fatal(http.ListenAndServe(":" + os.Getenv("PORT"), nil))
 }
 
 func handle(w http.ResponseWriter, r *http.Request) {
+	token := os.Getenv("SLASHCOMMAND")
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "Error parsing form.", http.StatusBadRequest)
 		return
 	}
+	channelID := r.Form.Get("channel_id")
+	text := r.Form.Get("text")
 
-	//channel := r.Form.Get("channel")
-	emojiListUrlOption := url.Values{}
-	token := os.Getenv("BIGSTAMP")
-	//token := "xoxp-382633581043-383781965799-496956374679-271a7ddf620b6f39538939b7f8e74465"
-	emojiListUrlOption.Add("token", token)
-	resp, err := http.Post("https://slack.com/api/emoji.list"+"?"+emojiListUrlOption.Encode(), "", nil)
-	if err != nil {
-		http.Error(w, "Error get emoji.list.", http.StatusBadRequest)
+	sendMsgUrl := "https://slack.com/api/chat.postMessage"
+
+	emojiMsg := emojiList(w, token)
+	for k, imgUrl := range emojiMsg {
+		if fmt.Sprintf(":%s:", k) == text {
+			sendMsgUrlOption := url.Values{}
+			sendMsgUrlOption.Add("token", token)
+			sendMsgUrlOption.Add("channel", channelID)
+			sendMsgUrlOption.Add("attachments", "[{\"\": \"\", \"text\": \"\", \"image_url\": \""+imgUrl.(string)+"\"}]")
+			_, err := http.Post(sendMsgUrl+"?"+sendMsgUrlOption.Encode(), "", nil)
+			if err != nil {
+				http.Error(w, "Error parse json.", http.StatusBadRequest)
+			}
+		}
 	}
+}
+
+func emojiList(w http.ResponseWriter, token string) (map[string]interface{}) {
+	urlOption := url.Values{}
+	urlOption.Add("token", token)
+
+	url := "https://slack.com/api/emoji.list?" + urlOption.Encode()
+	resp, err := http.Post(url, "", nil)
+	if err != nil {
+		http.Error(w, "can not get emoji list.", http.StatusBadRequest)
+	}
+
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		http.Error(w, "Error don't response read.", http.StatusBadRequest)
+		http.Error(w, "cnan not response read.", http.StatusBadRequest)
 	}
 
 	var result interface{}
@@ -47,24 +65,18 @@ func handle(w http.ResponseWriter, r *http.Request) {
 	msg := result.(map[string]interface{})
 
 	var emoji interface{}
-	eb, _ := json.Marshal(msg["emoji"])
+	eb, err := json.Marshal(msg["emoji"])
+	if err != nil {
+		logger.Errorf("can not emoji marshal err: %v", err)
+		http.Error(w, "can not emoji.list.", http.StatusBadRequest)
+	}
+
+	if eb == nil {
+		logger.Error("not set emoji.")
+	}
 
 	json.Unmarshal(eb, &emoji)
-
 	emojiMsg := emoji.(map[string]interface{})
-	sendMsgUrl := "https://slack.com/api/chat.postMessage"
 
-	text := r.Form.Get("text")
-	for k, imgUrl := range emojiMsg {
-		if strings.Contains(text, k) {
-			sendMsgUrlOption := url.Values{}
-			sendMsgUrlOption.Add("token", token)
-			sendMsgUrlOption.Add("channel", "#random")
-			sendMsgUrlOption.Add("attachments", "[{\"\": \"\", \"text\": \"\", \"image_url\": \""+imgUrl.(string)+"\"}]")
-			_, err := http.Post(sendMsgUrl+"?"+sendMsgUrlOption.Encode(), "", nil)
-			if err != nil {
-				http.Error(w, "Error parse json.", http.StatusBadRequest)
-			}
-		}
-	}
+	return emojiMsg
 }
