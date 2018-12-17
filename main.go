@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 )
 
 func main() {
@@ -24,13 +25,17 @@ func handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	channelID := r.Form.Get("channel_id")
-	text := r.Form.Get("text")
-
+	texts := strings.Split(r.Form.Get("text"), " ")
+	stampMap := map[string]bool{}
+	for _, text := range texts {
+		stampMap[text] = false
+	}
 	sendMsgUrl := "https://slack.com/api/chat.postMessage"
 
 	emojiMsg := emojiList(w, token)
 	for k, imgUrl := range emojiMsg {
-		if fmt.Sprintf(":%s:", k) == text {
+		ek := fmt.Sprintf(":%s:", k)
+		if _, ok := stampMap[ek]; ok {
 			sendMsgUrlOption := url.Values{}
 			sendMsgUrlOption.Add("token", token)
 			sendMsgUrlOption.Add("channel", channelID)
