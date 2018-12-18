@@ -36,13 +36,14 @@ func handle(w http.ResponseWriter, r *http.Request) {
 	for k, imgUrl := range emojiMsg {
 		ek := fmt.Sprintf(":%s:", k)
 		if _, ok := stampMap[ek]; ok {
-			sendMsgUrlOption := url.Values{}
-			sendMsgUrlOption.Add("token", token)
-			sendMsgUrlOption.Add("channel", channelID)
-			sendMsgUrlOption.Add("attachments", "[{\"\": \"\", \"text\": \"\", \"image_url\": \""+imgUrl.(string)+"\"}]")
-			_, err := http.Post(sendMsgUrl+"?"+sendMsgUrlOption.Encode(), "", nil)
+			option := url.Values{}
+			option.Add("token", token)
+			option.Add("channel", channelID)
+			option.Add("attachments", "[{\"\": \"\", \"text\": \"\", \"image_url\": \""+imgUrl.(string)+"\"}]")
+			option.Add("as_user", "true")
+			_, err := http.Post(sendMsgUrl+"?"+option.Encode(), "", nil)
 			if err != nil {
-				http.Error(w, "Error parse json.", http.StatusBadRequest)
+				http.Error(w, "can't http post.", http.StatusBadRequest)
 			}
 		}
 	}
